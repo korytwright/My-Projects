@@ -36,4 +36,5 @@ for value in range(1,13):
 
 print(squares)
 
+#This is the end of the code
 
