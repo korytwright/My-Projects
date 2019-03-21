@@ -135,7 +135,8 @@ Coping files from pod/container to local
 Coping files from local to pod/container
 	- $ kubectl cp $HOME/config.txt <pod-name>:/config.txt
 
-
+Liveness Probe- Liveness determines if an application is running properly
+	tcpSocket health check- Attempts to open 3-way handshake 
 Heath Check and Liveness Probe Example____________________________________
 
 apiVersion: v1
@@ -158,6 +159,66 @@ spec:
         - containerPort: 8080
           name: http
           protocol: TCP
+^^       ^^        ^^        ^^        ^^
+The preceding Pod manifest uses an *httpGet* probe to perform an HTTP GET request 
+against the */healthy* endpoint on port *8080* of the kuard container. The probe sets
+an *initialDelaySeconds of 5*, and thus will not be called until five seconds after
+all the containers in the Pod are created. The probe must respond within the *one-
+second timeout*, and the HTTP status code must be equal to or *greater than 200 and
+less than 400* to be considered successful. Kubernetes will call the probe every *10
+seconds*. If more than *three* probes fail, the container will fail and restart.
+
+^^
+This command created the pod:  $ kubectl apply -f kuard-pod-health.yaml
+This command does port-forwarding to the Pods: $ kubectl port-forward kuard 8080:8080
+
+
+Readiness Probe- Readiness describes when a container is ready to serve user requests.
+	- Containers that fail readiness checks are removed from service load balancers.
+
+Exec probe- runs customable execute script to probe specific applications
+
+REQUEST GAURENTEED
+Example 5-3. kuard-pod-resreq.yaml__________________________________________________________
+apiVersion: v1kind: Pod
+metadata:
+  name: kuard
+spec:
+  containers:
+    - image: gcr.io/kuar-demo/kuard-amd64:1
+    name: kuard
+    # Resource request here gaurantees 500m for RAM, and 128M of disk space 
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "128Mi"
+    ports:
+      - containerPort: 8080
+        name: http
+        protocol: TCP
+
+
+CAPPING RESOURCE LIMITS
+Example 5-4. kuard-pod-reslim.yaml________________________________________________
+apiVersion: v1
+kind: Pod
+  metadata:
+name: kuard
+spec:
+  containers:
+    - image: gcr.io/kuar-demo/kuard-amd64:1
+      name: kuard
+      resources:
+        requests:
+          cpu: "500m"
+          memory: "128Mi"
+        limits:
+          cpu: "1000m"
+          memory: "256Mi"
+      ports:
+        - containerPort: 8080
+        name: http
+        protocol: TCP     
 
 *****************************
 
