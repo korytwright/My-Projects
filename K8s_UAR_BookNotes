@@ -220,8 +220,162 @@ spec:
         name: http
         protocol: TCP     
 
-*****************************
 
+PERSISTING DATA VOLUMES
+	- To add a volume to a Pod manifest, there are two new stanzas to add to our configuration. The first is a new spec.volumes section. 
+	  This array defines all of the volumes that may be accessed by containers in the Pod manifest.
+	  
+	- The second addition is the volumeMounts array in the container definition. This array defines the volumes that are mounted
+	  into a particular container, and the path where each volume should be mounted  
+	  
+	  
+Example 5-5. kuard-pod-vol.yaml_______________________________________________________
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kuard
+spec:
+# This array defines all of the volumes that may be accessed by containers in the Pod manifest
+  volumes:
+    - name: "kuard-data"
+      hostPath:
+        path: "/var/lib/kuard"
+  containers:
+    - image: gcr.io/kuar-demo/kuard-amd64:1
+      name: kuard
+# This array defines the volumes that are mounted into a particular container, and the path where each volume should be mounted
+        volumeMounts:
+          - mountPath: "/data" 
+            name: "kuard-data" 
+      ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+	  
+"emptyDir" is a way for two containers to share volume resources.
+
+Persisting Data Using Remote Disks
+..............................
+volumes:
+  - name: "kuard-data"
+    nfs:
+      server: my.nfs.server.local
+      path: "/exports"
+...............................
+
+Putting it all together
+
+Example 5-6. kuard-pod-full.yaml_____________________________________
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kuard
+spec:
+  volumes:
+    - name: "kuard-data"
+      nfs:
+        server: my.nfs.server.local
+        path: "/exports"
+  containers:
+    - image: gcr.io/kuar-demo/kuard-amd64:1
+      name: kuard
+      ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "128Mi"
+          limits:
+            cpu: "1000m"
+	    memory: "256Mi"
+	volumeMounts:
+          - mountPath: "/data"
+            name: "kuard-data"
+        livenessProbe:
+          httpGet:
+            path: /healthy
+            port: 8080
+          initialDelaySeconds: 5
+          timeoutSeconds: 1
+          periodSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+          path: /ready
+          port: 8080
+        initialDelaySeconds: 30
+        timeoutSeconds: 1
+        periodSeconds: 10
+        failureThreshold: 3
+
+*****************************
+Chapter 6 Labels and Annotations 
+
+labels="ver=2,app=alpaca,env=test"
+	- In this example, labels are being set: ver=2; app=alpaca; env=test
+	- List rs/deployments and their label info: $ kubectl get deployments --show-labels
+	- Modifying labels imparitively: $ kubectl label deployments alpaca-test "canary=true"
+	
+Label Selector
+	- $ kubectl get pods --selector="ver=2"
+	- $ kubectl get pods --selector="app=bandicoot,ver=2"
+	- $ kubectl get pods --selector="app in (alpaca,bandicoot)"
+	
+
+Annotation
+	- Annotations provide a place to store additional metadata for Kubernetes objects with the sole purpose of assisting tools and libraries.
+	- Can be used for the tool itself or to pass configuration information between external systems.
+	- While labels are used to identify and group objects, annotations are used to provide extra information about where an object came from, how to use it, or policy around that object.
+	- Keep track of a “reason” for the latest update to an object.
+	- Communicate a specialized scheduling policy to a specialized scheduler.
+	- Extend data about the last tool to update the resource and how it was updated (used for detecting changes by other tools and doing a smart merge).
+	- Build, release, or image information that isn’t appropriate for labels (may include a Git hash, timestamp, PR number, etc.).
+	- Enable the Deployment object (Chapter 12) to keep track of ReplicaSets that it is managing for rollouts.
+	- Provide extra data to enhance the visual quality or usability of a UI. For example, objects could include a link to an icon (or a base64-encoded version of an icon).
+	- Prototype alpha functionality in Kubernetes (instead of creating a first-class API field, the parameters for that functionality are instead encoded in an annotation).
+	
+Defining Annotations Example:
+...
+metadata:
+  annotations:
+    example.com/icon-url: "https://example.com/icon.png"
+...
+
+
+*****************************
+Chapter 7 Service Discovery (DNS for Kubernetes)
+
+What is service discovery- Service discovery tools help solve the problem of finding which processes are listening at which addresses for which services.
+
+Service Object:
+	A Service object is a way to create a named label selector.
+
+$ kubectl describe service alpaca-prod
+Name:			alpaca-prod
+Namespace:		default
+Labels:			app=alpaca
+			env=prod
+			ver=1
+Annotations:		<none>
+Selector:		app=alpaca,env=prod,ver=1
+Type:			NodePort (This can also be type 'LoadBalancer')
+IP:			10.115.245.13
+Port:			<unset> 8080/TCP
+NodePort:		<unset> 32711/TCP
+Endpoints:		10.112.1.66:8080,10.112.2.104:8080,10.112.2.105:8080
+Session Affinity:	None
+No events.
+
+Endpoints
+	- Some applications (and the system itself) want to be able to use services without using a cluster IP. (It uses 'EndPoints')
+	- For every Service object, Kubernetes creates a buddy Endpoints object that contains the IP addresses for that service
+	- To use a service, an advanced application can talk to the Kubernetes API directly to look up endpoints and call them
+
+Kubernetes services are built on top of label selectors over pods. That means that you can use the Kubernetes API to do rudimentary 
+service discovery without using a Service object at all
+*****************************
 Chapter 13
 
 StatefulSets
@@ -278,7 +432,10 @@ The URI for your MongoDB cluster
 
 
 
-				Misc Notes
+							Misc Notes
+				
+*The kubernetes service is automatically created for you so that you can find and talk to the Kubernetes API from within the app.*
+				
 Naming and DNS is done using "kind: Service" yaml
 
 
