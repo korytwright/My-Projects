@@ -66,7 +66,7 @@ Namespaces-You can think of each namespace as a folder that holds a set of objec
 
 Contexts-If you want to change the default namespace more permanently, you can use a context. This gets recorded in a kubectl configuration file, usually located at $HOME/.kube/config
 	- Context is like namespace but more permanent; can have diff namespace/context: $ kubectl config set-context my-context --namespace=mystuff
-	- In oder to USE context, must be imparatively expressed: $ kubectl config use-context my-context
+	- In oder to USE context, must be imperatively expressed: $ kubectl config use-context my-context
 
 Another common task is extracting specific fields from the object: $ kubectl get pods my-pod -o jsonpath --template={.status.podIP}
 	
@@ -316,7 +316,7 @@ Chapter 6 Labels and Annotations
 labels="ver=2,app=alpaca,env=test"
 	- In this example, labels are being set: ver=2; app=alpaca; env=test
 	- List rs/deployments and their label info: $ kubectl get deployments --show-labels
-	- Modifying labels imparitively: $ kubectl label deployments alpaca-test "canary=true"
+	- Modifying labels imperatively: $ kubectl label deployments alpaca-test "canary=true"
 	
 Label Selector
 	- $ kubectl get pods --selector="ver=2"
@@ -374,7 +374,116 @@ Endpoints
 	- To use a service, an advanced application can talk to the Kubernetes API directly to look up endpoints and call them
 
 Kubernetes services are built on top of label selectors over pods. That means that you can use the Kubernetes API to do rudimentary 
-service discovery without using a Service object at all
+service discovery without using a Service object at all.
+
+*****************************
+Chapter 8 ReplicaSets
+
+Reconciliation Loops- The central concept behind a reconciliation loop is the notion of desired state and observed or current state. Desired state is the state you want.
+	- The reconciliation loop is constantly running, observing the current state of the world and taking action to try to make the observed state match the desired state.
+	
+ReplicaSets	
+	- Though ReplicaSets create and manage Pods, they do not own the Pods they create. ReplicaSets use label queries to identify the set of Pods they should be managing.
+	- Can adopt existing pods as opposed to deleting a pod and relaunching it via a ReplicaSet
+	- ReplicaSets are designed to represent a single, scalable microservice inside your architecture.
+
+Quarantining Containers
+	- You can modify the set of labels on the sick Pod; doind so will disassociate it from the ReplicaSet and service so you can debug the pod.
+	
+
+Example 8-1. kuard-rs.yaml_______________________________
+
+apiVersion: extensions/v1beta1
+kind: ReplicaSet
+metadata:
+  name: kuard
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: kuard
+        version: "2"
+  spec:
+    containers:
+      - name: kuard
+      image: "gcr.io/kuar-demo/kuard-amd64:2"
+
+Obtain details for ReplicaSet [name]: $ kubectl describe rs [metadata.name]
+
+Finding a Set of Pods for a ReplicaSet: $ kubectl get pods -l app=kuard,version=2
+
+Imperative Scaling ReplicaSets [spec.replicas]: $ kubectl scale kuard --replicas=4
+
+Scale ReplicaSet based on CPU utilization (percentage): $ kubectl autoscale rs kuard --min=2 --max=5 --cpu-percent=80
+	- This command creates an autoscaler that scales between two and five replicas with a CPU threshold of 80%
+
+Horizontal Pod Autoscaling (HPA)
+
+^^^^
+Kubernetes makes a distinction between horizontal scaling, which involves creating additional replicas of a Pod, and vertical scaling,
+which involves increasing the resources required for a particular Pod (e.g., increasing the CPU required for the Pod)
+
+Web server like nginx, you may want to scale due to CPU usage. For an in-memory cache, you may want to scale with memory consumption. In some
+cases you may want to scale in response to custom application metrics, hence HPA
+
+!NOTE----NOTE----NOTE!
+
+HPA requires the presence of the heapster Pod on your cluster. heapster keeps track of metrics and provides an API for consuming metrics HPA uses when making scaling
+decisions. Most installations of Kubernetes include heapster by default. You can validate its presence by listing the Pods in the kube-system namespace:
+	- $ kubectl get pods --namespace=kube-system
+
+You should see a Pod named heapster somewhere in that list. If you do not see it,
+autoscaling will not work correctly.
+
+!NOTE----NOTE----NOTE!
+
+*****************************
+Chapter 9 DaemonSets (DaemonSets put a pod on each node)
+
+By default a DaemonSet will create a copy of a Pod on every node unless a node selector is used, which will limit eligible nodes to those with a matching set of
+labels.
+
+Creating DaemonSets
+
+Example 9-1. fluentd.yaml
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: fluentd
+  namespace: kube-system
+  labels:
+    app: fluentd
+spec:
+  template:
+    metadata:
+      labels:
+        app: fluentd
+    spec:
+      containers:
+      - name: fluentd
+        image: fluent/fluentd:v0.14.10
+        resources:
+          limits:
+            memory: 200Mi
+        requests:
+          cpu: 100m
+          memory: 200Mi
+      volumeMounts:
+      - name: varlog
+        mountPath: /var/log
+      - name: varlibdockercontainers
+        mountPath: /var/lib/docker/containers
+        readOnly: true
+    terminationGracePeriodSeconds: 30
+    volumes:
+    - name: varlog
+      hostPath:
+        path: /var/log
+    - name: varlibdockercontainers
+      hostPath:
+        path: /var/lib/docker/containers
+
 *****************************
 Chapter 13
 
@@ -498,7 +607,7 @@ spec:
       name: data
 
 ^^NOTE^^
-You can also note that there are two volumes defined in the Pod. One is the volume
+You can also note that there are two volumes defined in the yaml. One is the volume
 that uses our ConfigMap to configure the two Redis applications, and the other is a
 simple emptyDir volume that is mapped into the Redis server container to hold the
 application data so that it survives a container restar
