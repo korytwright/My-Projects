@@ -547,9 +547,62 @@ Parallel fixed Compl. -> multiple pods processing set of work in paralell + ge 1
 Work que/parelell jobs -> multiple pods processing from centralized work queue -> ge 1 pods running once until successful -> completions:1 & paralellism: ge2
 
 
+One Shot- provide a way to run a single Pod once until successful termination.
+	- 
+Example 10-1. job-oneshot.yaml____________________________________________
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: oneshot
+  labels:
+    chapter: jobs
+spec:
+  template:
+    metadata:
+      labels:
+        chapter: jobs
+    spec:
+      containers:
+      - name: kuard
+        image: gcr.io/kuar-demo/kuard-amd64:1
+        imagePullPolicy: Always
+        args:
+        - "--keygen-enable"
+        - "--keygen-exit-on-complete"
+        - "--keygen-num-to-gen=10"
+      restartPolicy: OnFailure
+
+**Note on above YAML**
+--restart=OnFailure is the option that tells kubectl to create a Job object.
 
 
-
+Example 10-3. job-parallel.yaml______________________________
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: parallel
+  labels:
+    chapter: jobs
+spec:
+  parallelism: 5
+  completions: 10
+  template:
+    metadata:
+      labels:
+        chapter: jobs
+  spec:
+    containers:
+    - name: kuard
+      image: gcr.io/kuar-demo/kuard-amd64:1
+      imagePullPolicy: Always
+      args:
+      - "--keygen-enable"
+      - "--keygen-exit-on-complete"
+      - "--keygen-num-to-gen=10"
+    restartPolicy: OnFailure  
+    
+    
+Work Queue
 
 *****************************
 Chapter 11
