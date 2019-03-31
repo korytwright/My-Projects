@@ -602,7 +602,37 @@ spec:
     restartPolicy: OnFailure  
     
     
-Work Queue
+Work Queue- A common use case for Jobs is to process work from a work queue. In this scenario, some task creates a number of work items and 
+publishes them to a work queue. A worker Job can be run to process each work item until the work queue is empty.
+
+Work queue example:
+
+Example 10-4. rs-queue.yaml
+apiVersion: extensions/v1beta1
+kind: ReplicaSet
+metadata:
+  labels:
+    app: work-queue
+    component: queue
+    chapter: jobs
+  name: queue
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: work-queue
+        component: queue
+        chapter: jobs
+  spec:
+    containers:
+    - name: queue
+      image: "gcr.io/kuar-demo/kuard-amd64:1"
+      imagePullPolicy: Always
+      
+
+Next, loading up the queue
+
 
 *****************************
 Chapter 11
