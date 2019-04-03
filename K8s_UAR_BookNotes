@@ -607,7 +607,7 @@ publishes them to a work queue. A worker Job can be run to process each work ite
 
 Work queue example:
 
-Example 10-4. rs-queue.yaml
+Example 10-4. rs-queue.yaml_____________________________________________________
 apiVersion: extensions/v1beta1
 kind: ReplicaSet
 metadata:
@@ -632,10 +632,142 @@ spec:
       
 
 Next, loading up the queue
+Once the work queue is in place, we should expose it using a service. This will make it easy for prods and customers to locate
+work queue via DNS:
 
 
+Example 10-5. service-queue.yaml___________________________________________
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: work-queue
+    component: queue
+    chapter: jobs
+  name: queue
+spec:
+  ports:
+  - port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: work-queue
+    component: queue
+    
+              ^^^^^^^^^^^^^^^^^^^^^^^
+Create the queue service with kubectl:
+$ kubectl apply -f service-queue.yaml
+
+
+LOADING UP THE QUEUE
+	- Using curl to drive the API for the work queue server and insert work items
+	- curl communicates to the work queue through the 'kubectl port-forward' that was set up earlier:
+
+Example 10-6. load-queue.sh
+# Create a work queue called 'keygen'
+curl -X PUT localhost:8080/memq/server/queues/keygen
+
+# Create 100 work items and load up the queue.
+for i in work-item-{0..99}; do
+  curl -X POST localhost:8080/memq/server/queues/keygen/enqueue \
+    -d "$i"
+done
+
+(Run these commands, and you should see 100 JSON objects output to your terminal. You can confirm the status of the queue by looking at the “MemQ Server” tab in the UI)
+or you can ask the work queue API directly:
+
+$ curl 127.0.0.1:8080/memq/server/stats
+{
+	"kind": "stats",
+	"queues": [
+	    {
+		"depth": 100,
+		"dequeued": 0,
+		"drained": 0,
+		"enqueued": 100,
+		"name": "keygen"
+	    }
+	]
+}
+
+
+Set up to draw work items from the work queue create a key, and then exit once the queue is empty:
+
+Example 10-7. job-consumers.yaml_________________________________
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    app: message-queue
+    component: consumer
+    chapter: jobs
+  name: consumers
+spec:
+  parallelism: 5
+template:
+  metadata:
+    labels:
+      app: message-queue
+      component: consumer
+      chapter: jobs
+  spec:
+    containers:
+    - name: worker
+      image: "gcr.io/kuar-demo/kuard-amd64:1"
+      imagePullPolicy: Always
+      args:
+      - "--keygen-enable"
+      - "--keygen-exit-on-complete"
+      - "--keygen-memq-server=http://queue:8080/memq/server"
+      - "--keygen-memq-queue=key  
+    restartPolicy: OnFailure
+    
+		^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+We are telling the Job to start up five pods in parallel. As the completions parameter is unset, we put the Job into a worker pool mode. Once the first pod exits
+with a zero exit code, the Job will start winding down and will not start any new Pods. This means that none of the workers should exit until the work is done and
+they are all in the process of finishing up.
+
+Create the consumers Job:
+	- $ kubectl apply -f job-consumers.yaml
+	
+	
 *****************************
-Chapter 11
+Chapter 11 ConfigMaps and Secrets
+
+ConfigMap- think of ConfigMap is as a Kube object that defines a small filesystem. Another way is as a set of variables that can be used when defining the
+environment or command line for your containers.
+
+This example assumes that you have a file called 'my-config.txt':
+|   --# This is a sample config file that I might use to configure an application
+|   --parameter1 = value1
+|   --parameter2 = value2
+
+$ kubectl create configmap my-config \
+--from-file=my-config.txt \
+--from-literal=extra-param=extra-value \
+--from-literal=another-param=another-value
+
+OR
+
+| This is the equivelant declaritive | 
+
+apiVersion: v1
+data:
+  another-param: another-value
+  extra-param: extra-value
+  my-config.txt: |
+    # This is a sample config file that I might use to configure an application
+    parameter1 = value1
+    parameter2 = value2
+kind: ConfigMap
+metadata:
+  creationTimestamp: ...
+  name: my-config
+  namespace: default
+  resourceVersion: "13556"
+  selfLink: /api/v1/namespaces/default/configmaps/my-config
+  uid: 3641c553-f7de-11e6-98c9-06135271a273
 
 *****************************
 Chapter 12
