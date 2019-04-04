@@ -18,7 +18,7 @@ Efficiency
 
 Decoupling-making sure front-end and back-end are completely seperated; front end would use API to comminucate with backend.
 
-*****************************
+***********************************************************************************************************************
 
 Chapter 2 Creating and Running Containers
 
@@ -40,7 +40,7 @@ Fork - Is when you build off of a container image and it is independant of the p
 
 
 
-*****************************
+***********************************************************************************************************************
 
 Chapter 3 Installing Kubes on AWS, Google Cloud Platform, Microsoft Azure and Raspberry Pi
 
@@ -58,7 +58,7 @@ Kuberenets UI is ran using deployment; get information about UI dashboard: $ kub
 
 Everything contained in Kubernetes is represented by a RESTful resource (API).
 
-*****************************
+***********************************************************************************************************************
 
 Chapter 4 Common kubectl Commands
 
@@ -88,7 +88,7 @@ $ kubectl exec -it <pod-name> -- bash
 $ kubectl cp <pod-name>:/path/to/remote/file /path/to/local/file
 	- This will copy a file from a running container to your local machine.
 
-*****************************
+***********************************************************************************************************************
 
 Chapter 5 Pods
 
@@ -310,7 +310,7 @@ spec:
         periodSeconds: 10
         failureThreshold: 3
 
-*****************************
+***********************************************************************************************************************
 Chapter 6 Labels and Annotations 
 
 labels="ver=2,app=alpaca,env=test"
@@ -344,7 +344,7 @@ metadata:
 ...
 
 
-*****************************
+***********************************************************************************************************************
 Chapter 7 Service Discovery (DNS for Kubernetes)
 
 What is service discovery- Service discovery tools help solve the problem of finding which processes are listening at which addresses for which services.
@@ -376,7 +376,7 @@ Endpoints
 Kubernetes services are built on top of label selectors over pods. That means that you can use the Kubernetes API to do rudimentary 
 service discovery without using a Service object at all.
 
-*****************************
+***********************************************************************************************************************
 Chapter 8 ReplicaSets
 
 Reconciliation Loops- The central concept behind a reconciliation loop is the notion of desired state and observed or current state. Desired state is the state you want.
@@ -438,7 +438,7 @@ autoscaling will not work correctly.
 
 !NOTE----NOTE----NOTE!
 
-*****************************
+***********************************************************************************************************************
 Chapter 9 DaemonSets (DaemonSets put a pod on each node)
 
 By default a DaemonSet will create a copy of a Pod on every node unless a node selector is used, which will limit eligible nodes to those with a matching set of
@@ -524,7 +524,7 @@ How will we update DaemonSets? Deleting and re-deploying? Or a rollning update f
 	- spec.updateStrategy.rollingUpdate.maxUnavailable- indicates how many Pods may be simultaneously updated by the rolling update
 
 
-*****************************
+***********************************************************************************************************************
 Chapter 10 Jobs
 
 Job: 
@@ -732,7 +732,7 @@ Create the consumers Job:
 	- $ kubectl apply -f job-consumers.yaml
 	
 	
-*****************************
+***********************************************************************************************************************
 Chapter 11 ConfigMaps and Secrets
 
 ConfigMap- think of ConfigMap is as a Kube object that defines a small filesystem. Another way is as a set of variables that can be used when defining the
@@ -769,17 +769,149 @@ metadata:
   selfLink: /api/v1/namespaces/default/configmaps/my-config
   uid: 3641c553-f7de-11e6-98c9-06135271a273
 
-*****************************
+*ConfigMap is really just some key/value pairs stored in an object
+
+USING A CONFIGMAP (3 ways to use configMap)
+- Filesystem
+	- mount a ConfigMap into a Pod. A file is created for each entry based on key name. contents of file are set to the value.
+- Environment Var
+	- A ConfigMap can be used to dynamically set the value of an environment variable.
+- CLI argument
+	- Command-line arguments build on environment variables. Kubernetes will perform the correct substitution 
+	  with a special $(<env-var-name>) syntax.
+
+--Let’s create a manifest for kuard that pulls all of these together, as shown in--
+Example 11-2. kuard-config.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kuard-config
+spec:
+  containers:
+    - name: test-container
+      image: gcr.io/kuar-demo/kuard-amd64:1
+      imagePullPolicy: Always
+      command:
+        - "/kuard"
+        - "$(EXTRA_PARAM)"
+      env:
+        - name: ANOTHER_PARAM
+          valueFrom:
+            configMapKeyRef:
+            name: my-config
+            key: another-param
+       -  name: EXTRA_PARAM
+          valueFrom:
+            configMapKeyRef:
+            name: my-config
+            key: extra-param
+      volumeMounts:
+        - name: config-volume
+          mountPath: /config
+  volumes:
+    - name: config-volume
+      configMap:
+        name: my-config
+    restartPolicy: Never
+
+
+For the filesystem method, we create a new volume inside the pod and give it the name config-volume. We then define this 
+volume to be a ConfigMap volume and point at the ConfigMap to mount. We have to specify where this gets mounted into
+the kuard container with a volumeMount. In this case we are mounting it at /config.
+
+Environment variables are specified with a special valueFrom member. This references the ConfigMap and the data key to use 
+within that ConfigMap.
+
+						--->SECRETS<-----
+- enable container images to be created without bundling sensitive data
+- This allows containers to remain portable across environments.
+- are exposed to pods via explicit declaration in pod manifests and the Kubernetes API
+- The first step in creating a secret is to obtain the raw data we want to store (store .crt & .key locally)
+
+$ kubectl create secret generic <name>-tls \
+--from-file=kuard.crt \
+--from-file=kuard.key
+
+(get details by using:  $ kubectl describe secrets kuard-tls)
+
+					---->CONSUMING SECRETS<------
+		
+- Secrets can be consumed using the Kubernetes REST API by applications that know how to call that API directly.
+- Instead of accessing secrets through the API server, we can use a secrets volume.
+
+- Secrets are stored on tmpfs volumes (aka RAM disks) and, as such, are not written to disk on nodes.
+- Each data element of a secret is stored in a separate file under the target mount point specified in the volume mount.
+
+The following pod manifest (Example 11-3) demonstrates how to declare a secrets volume
+
+Example 11-3. kuard-secret.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kuard-tls
+spec:
+  containers:
+    - name: kuard-tls
+      image: gcr.io/kuar-demo/kuard-amd64:1
+      imagePullPolicy: Always
+      volumeMounts:
+      - name: tls-certs
+        mountPath: "/tls"
+        readOnly: true
+volumes:
+  - name: tls-certs
+    secret:
+      secretName: kuard-tls
+      
+^^^^^^^^^^^^^^^^^^^^^^^^^^^      
+Connect to the pod by running:
+$ kubectl port-forward kuard-tls 8443:8443
+
+
+			---->PRIVATE DOCKER REGISTRIES<-----
+- A special use case for secrets is to store access credentials for private Docker registries.
+- Kubernetes supports using images stored on private registries, but access to those images requires credentials.
+- Image pull secrets leverage the secrets API to automate the distribution of private registry credentials.
+- Image pull secrets are stored just like normal secrets but are consumed through the spec.imagePullSecrets Pod specification field.
+	^^^^^^
+$ kubectl create secret docker-registry my-image-pull-secret \
+--docker-username=<username> \
+--docker-password=<password> \
+--docker-email=<email-address>
+
+Example 11-4. kuard-secret-ips.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kuard-tls
+spec:
+  containers:
+    - name: kuard-tls
+      image: gcr.io/kuar-demo/kuard-amd64:1
+      imagePullPolicy: Always
+      volumeMounts:
+      - name: tls-certs
+        mountPath: "/tls"
+        readOnly: true
+  imagePullSecrets:
+    - name: my-image-pull-secret
+    volumes:
+      - name: tls-certs
+        secret:
+          secretName: kuard-tls
+
+
+***********************************************************************************************************************
 Chapter 12
 
-*****************************
+***********************************************************************************************************************
 Chapter 13
 
 StatefulSets
 Automating MongoDB Cluster Creation
 Manually replicated mongo db with stateful sets
 
-*****************************
+***********************************************************************************************************************
 
 Chapter 14 Deploying Real-World Apps
 
