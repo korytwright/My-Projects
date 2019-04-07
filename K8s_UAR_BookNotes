@@ -735,7 +735,7 @@ Create the consumers Job:
 ***********************************************************************************************************************
 Chapter 11 ConfigMaps and Secrets
 
-ConfigMap- think of ConfigMap is as a Kube object that defines a small filesystem. Another way is as a set of variables that can be used when defining the
+ConfigMap- think of ConfigMap as a Kube object that defines a small filesystem. Another way is as a set of variables that can be used when defining the
 environment or command line for your containers.
 
 This example assumes that you have a file called 'my-config.txt':
@@ -899,6 +899,8 @@ spec:
       - name: tls-certs
         secret:
           secretName: kuard-tls
+
+This will let you see raw data: $ kubectl get secret kuardtls -o yaml
 
 
 ***********************************************************************************************************************
