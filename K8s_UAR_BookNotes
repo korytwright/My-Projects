@@ -972,11 +972,63 @@ spec:
       dnsPolicy: ClusterFirst
       restartPolicy: Always
 
+  : IMPORTANT NOTE :
+  
+The best practice is to manage your Deployments declaratively via the YAML files
+
+  : IMPORTANT NOTE :
+  
+ To see "REVISION" and "CHANGE CAUSE (aka annotation)" for Deployment history, use:
+	- $ kubectl rollout history deployment <name>
+	
+To undo to a previous version
+	- $ kubectl rollout undo deployments <name> --to-revision=<ver #>
+	
+				------------->Deployment Strategies<------------------
+1. Recreate
+	- RS updates the image and terminates the RS that it manages. RS notices desired state not satisfied, so spins up new ones with updated image
+	- Down side is that this method has downtime.
+
+2. RollingUpdate
+	- you can roll out a new version of your service while it is still receiving user traffic for the older, without any downtime.
+	- important to note that complications arrive depending on how software is built
+		- for example, ver 1 can use lib 1, and ver 2 can use lib 2. User can already be using ver 1 on a pod that has been 
+		  since updated to ver 2, so a "lib request" will go to lib 2. This may cause conflict, ver 1 againt lib 2. (Page 156)
+		- A backend load balancer can mitigate this issue (page 157).
+2a. Configuring RollingUpdate
+	- MaxUnavailable
+		- parameter sets the maximum number of Pods that can be unavailable during a rolling update.
+		- It can either be set to an absolute number or by percentage 
+	- MaxSurge 
+		- parameter sets surge % of updated pods to spin up before proceeding w/the RollingUpdate
+		
+Ensuring Health During RollingUpdate____________
+- minReadySeconds
+	- indicates that the Deployment must wait for x seconds after seeing a Pod become healthy before moving on to updating the next Pod
+- progressDeadlineSeconds
+	- If any particular stage in the rollout fails to progress in 10 minutes, then the Deployment is marked as failed, and all 
+	  attempts to move the Deployment forward are halted.
+	  
+
 
 ***********************************************************************************************************************
 Chapter 13
 
+			------->Importing External Services<----------
+- You have an existing machine running in your network that has some sort of database running on it. In this situation you 
+  may not want to immediately move that database into containers and Kubernetes.
+  
+- Take advantage of all of the built-in naming and service discovery primitives provided by Kubernetes. Additionally, this
+  enables you to configure all your applications so that it looks like the database that is running on a machine somewhere is actually 
+  a Kubernetes service
+
+- When you deploy a Pod into the test namespace and it looks up the service named my-database, it will receive a pointer to 
+  my-database.test.svc.cluster.internal
+
+
 StatefulSets
+
+
 Automating MongoDB Cluster Creation
 Manually replicated mongo db with stateful sets
 
