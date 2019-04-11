@@ -1012,9 +1012,11 @@ Ensuring Health During RollingUpdate____________
 
 
 ***********************************************************************************************************************
-Chapter 13
+Chapter 13 Integrating Storage Solutions and Kubernetes
 
-			------->Importing External Services<----------
+
+			            ------->Importing External Services<----------
+				    
 - You have an existing machine running in your network that has some sort of database running on it. In this situation you 
   may not want to immediately move that database into containers and Kubernetes.
   
@@ -1025,6 +1027,8 @@ Chapter 13
 - When you deploy a Pod into the test namespace and it looks up the service named my-database, it will receive a pointer to 
   my-database.test.svc.cluster.internal
 
+- when a Pod deployed in the prod namespace looks up the same name (my-database) it will receive a pointer to mydatabase.
+  prod.svc.cluster.internal
 
 StatefulSets
 
