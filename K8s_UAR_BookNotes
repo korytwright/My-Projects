@@ -868,7 +868,7 @@ Connect to the pod by running:
 $ kubectl port-forward kuard-tls 8443:8443
 
 
-			---->PRIVATE DOCKER REGISTRIES<-----
+					---->PRIVATE DOCKER REGISTRIES<-----
 - A special use case for secrets is to store access credentials for private Docker registries.
 - Kubernetes supports using images stored on private registries, but access to those images requires credentials.
 - Image pull secrets leverage the secrets API to automate the distribution of private registry credentials.
@@ -920,7 +920,7 @@ Use the specified key/value pair directly.
 *you can just edit it directly and push a new version with kubectl replace -f <filename>.*
 
 
-				---->Recreate and update<-----
+					---->Recreate and update<-----
 
 If you store the inputs into your ConfigMaps or secrets as separate files on disk (opposed to embedded into YAML directly), 
 you can use kubectl to recreate the manifest and then use it to update the object.
@@ -1025,12 +1025,20 @@ Chapter 13 Integrating Storage Solutions and Kubernetes
   a Kubernetes service
 
 - When you deploy a Pod into the test namespace and it looks up the service named my-database, it will receive a pointer to 
-  my-database.test.svc.cluster.internal
+  my-database.test.svc.cluster.internal (namespace)
 
 - when a Pod deployed in the prod namespace looks up the same name (my-database) it will receive a pointer to mydatabase.
-  prod.svc.cluster.internal
+  prod.svc.cluster.internal (namespace)
 
-StatefulSets
+
+				------->Services Without Selectors<--------
+You generally have a DNS name that points to the specific server running
+the database. For our example, let’s assume that this server is named
+database.company.com. To import this external database service into Kubernetes,
+we start by creating a service without a Pod selector that references the DNS name of
+the database server
+				
+				StatefulSets
 
 
 Automating MongoDB Cluster Creation
