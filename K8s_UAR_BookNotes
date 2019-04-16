@@ -1031,14 +1031,13 @@ Chapter 13 Integrating Storage Solutions and Kubernetes
   prod.svc.cluster.internal (namespace)
 
 
-				------->Services Without Selectors<--------
-You generally have a DNS name that points to the specific server running
-the database. For our example, let’s assume that this server is named
-database.company.com. To import this external database service into Kubernetes,
-we start by creating a service without a Pod selector that references the DNS name of
-the database server
+				   ------->Services Without Selectors<--------
+You generally have a DNS name that points to the specific server running the database. For our example, let’s assume that 
+this server is named database.company.com. To import this external database service into Kubernetes, we start by creating 
+a service without a Pod selector that references the DNS name of the database server.
 				
-				StatefulSets
+				
+						StatefulSets
 
 
 Automating MongoDB Cluster Creation
